@@ -19,11 +19,12 @@ with col2:
 if st.button("🚀 Buat Video Pendek!"):
     if url:
         with st.spinner("⬇️ Mengunduh video dari YouTube... (Mungkin butuh beberapa saat)"):
-            ydl_opts = {
+        ydl_opts = {
                 'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
                 'outtmpl': 'temp_video.%(ext)s',
                 'merge_output_format': 'mp4',
-                'quiet': True
+                'quiet': True,
+                'extractor_args': {'youtube': {'player_client': ['android']}}
             }
             
             try:
