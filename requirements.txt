@@ -1,8 +1,8 @@
-streamlit==1.46.1
-yt-dlp==2026.05.10
-moviepy==2.2.1
-imageio==2.37.0
-imageio-ffmpeg==0.6.0
-numpy>=1.26
-pillow>=10.0
-proglog>=0.1.10
+streamlit
+yt-dlp
+moviepy
+imageio
+imageio-ffmpeg
+numpy
+pillow
+proglog
