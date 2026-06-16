@@ -8,7 +8,6 @@ st.set_page_config(page_title="Auto-Clipper Shorts", page_icon="✂️")
 st.title("✂️ YouTube to Shorts Auto-Clipper")
 st.write("Aplikasi sederhana untuk memotong video YouTube (Podcast/Game/Bola) menjadi format Vertikal (9:16).")
 
-# 1. Input dari User
 url = st.text_input("🔗 Masukkan Link YouTube:")
 col1, col2 = st.columns(2)
 with col1:
@@ -18,65 +17,53 @@ with col2:
 
 if st.button("🚀 Buat Video Pendek!"):
     if url:
-        with st.spinner("⬇️ Mengunduh video dari YouTube... (Memulai Mode Siluman)"):
+        with st.spinner("⬇️ Mengunduh video (Mencoba jalur khusus iOS)..."):
             
-            # Konfigurasi Anti-Blokir YouTube (Mode Siluman)
+            # Konfigurasi Trik iOS & IPv4
             ydl_opts = {
-                'format': 'best[ext=mp4]', 
-                'outtmpl': 'temp_video.%(ext)s',
+                'format': 'best',
+                'outtmpl': 'temp_video.mp4',
                 'quiet': True,
-                'nocheckcertificate': True, 
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-                },
-                'extractor_args': {'youtube': {'player_client': ['android', 'web']}}
+                'nocheckcertificate': True,
+                'force_ipv4': True,
+                'extractor_args': {'youtube': {'player_client': ['ios']}}
             }
             
             try:
-                # Proses Download
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([url])
                 st.success("✅ Download Selesai! Memulai proses editing...")
 
-                with st.spinner("✂️ Memotong dan menyesuaikan ukuran menjadi Vertikal (9:16)..."):
-                    # Load video
+                with st.spinner("✂️ Memotong ke Vertikal (9:16)..."):
                     clip = VideoFileClip("temp_video.mp4")
                     
                     if start_time + duration > clip.duration:
-                        st.warning("Durasi melebihi panjang video. Dipotong sampai akhir video saja.")
                         end_time = clip.duration
                     else:
                         end_time = start_time + duration
 
-                    # Potong video berdasarkan waktu
                     subclip = clip.subclip(start_time, end_time)
 
-                    # Logika Auto-Crop Center (Mengubah Landscape 16:9 jadi Portrait 9:16)
                     w, h = subclip.size
                     target_w = h * 9 / 16
                     x_center = w / 2
                     
-                    # Proses Crop
                     cropped_clip = subclip.crop(x1=x_center - target_w/2, y1=0, x2=x_center + target_w/2, y2=h)
 
-                    # Render hasil akhir
                     output_name = "hasil_shorts.mp4"
                     cropped_clip.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=30, preset="ultrafast")
 
-                # Tampilkan hasil di Website
                 st.success("🎉 Video berhasil dibuat!")
                 st.video(output_name)
                 
-                # Tombol Download
                 with open(output_name, "rb") as file:
                     st.download_button(
-                        label="📥 Download Video Hasil Clip",
+                        label="📥 Download Video",
                         data=file,
                         file_name="auto_clip_shorts.mp4",
                         mime="video/mp4"
                     )
 
-                # Bersihkan file temporary
                 clip.close()
                 subclip.close()
                 cropped_clip.close()
@@ -84,6 +71,6 @@ if st.button("🚀 Buat Video Pendek!"):
                     os.remove("temp_video.mp4")
 
             except Exception as e:
-                st.error(f"❌ Terjadi kesalahan: {e}")
+                st.error(f"❌ ERROR: {e}")
     else:
-        st.warning("⚠️ Harap masukkan link YouTube terlebih dahulu!")
+        st.warning("⚠️ Harap masukkan link YouTube!")
