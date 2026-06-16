@@ -1,217 +1,69 @@
 import streamlit as st
-import tempfile
-import shutil
+import yt_dlp
+from moviepy.editor import VideoFileClip
 import os
-from pathlib import Path
 
-from yt_dlp import YoutubeDL
-from moviepy import VideoFileClip
-
-# =====================================
-# CONFIG
-# =====================================
-
-st.set_page_config(
-    page_title="Clipper Tool",
-    page_icon="🎬",
-    layout="centered"
-)
-
-st.title("🎬 Clipper Tool")
-st.caption("YouTube → Clip → Auto Crop 9:16")
-
-# =====================================
-# CLEANUP
-# =====================================
-
-def cleanup_directory(path):
-    try:
-        if path and os.path.exists(path):
-            shutil.rmtree(path, ignore_errors=True)
-    except Exception:
-        pass
-
-
-# =====================================
-# CENTER CROP 9:16
-# =====================================
-
-def center_crop_vertical(video):
-    width, height = video.size
-
-    target_ratio = 9 / 16
-    current_ratio = width / height
-
-    if current_ratio > target_ratio:
-
-        new_width = int(height * target_ratio)
-
-        x1 = (width - new_width) // 2
-        x2 = x1 + new_width
-
-        video = video.cropped(
-            x1=x1,
-            y1=0,
-            x2=x2,
-            y2=height
-        )
-
-    return video
-
-
-# =====================================
-# DOWNLOAD VIDEO
-# =====================================
-
-def download_video(url, output_dir):
-
-    ydl_opts = {
-        "format": "best[ext=mp4]/best",
-        "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
-        "merge_output_format": "mp4",
-        "quiet": False,
-        "noplaylist": True,
-        "nocheckcertificate": True
-    }
-
-    with YoutubeDL(ydl_opts) as ydl:
-
-        info = ydl.extract_info(url, download=True)
-
-        filename = ydl.prepare_filename(info)
-
-    file_path = Path(filename)
-
-    if file_path.exists():
-        return str(file_path)
-
-    mp4_files = list(Path(output_dir).glob("*.mp4"))
-
-    if mp4_files:
-        return str(mp4_files[0])
-
-    raise Exception("File video tidak ditemukan setelah download.")
-
-
-# =====================================
-# UI
-# =====================================
-
-youtube_url = st.text_input(
-    "YouTube URL",
-    placeholder="https://youtube.com/watch?v=xxxx"
-)
-
-start_time = st.number_input(
-    "Start (detik)",
-    min_value=0,
-    value=0
-)
-
-duration = st.number_input(
-    "Durasi Clip (detik)",
-    min_value=5,
-    value=30
-)
-
-# =====================================
-# PROCESS
-# =====================================
-
-if st.button("🚀 Generate Clip"):
-
-    if not youtube_url:
-
-        st.error("Masukkan URL terlebih dahulu.")
-        st.stop()
-
-    if (
-        "youtube.com" not in youtube_url
-        and
-        "youtu.be" not in youtube_url
-    ):
-        st.error("URL bukan YouTube.")
-        st.stop()
-
-    temp_dir = tempfile.mkdtemp()
-
-    try:
-
-        progress = st.progress(0)
-
-        # DOWNLOAD
-        with st.spinner("Mengunduh video..."):
-
-            progress.progress(10)
-
-            video_path = download_video(
-                youtube_url,
-                temp_dir
-            )
-
-            progress.progress(40)
-
-        st.success("Video berhasil diunduh")
-
-        output_path = os.path.join(
-            temp_dir,
-            "clip_vertical.mp4"
-        )
-
-        # PROCESS VIDEO
-        with st.spinner("Memproses video..."):
-
-            video = VideoFileClip(video_path)
-
-            end_time = min(
-                start_time + duration,
-                video.duration
-            )
-
-            # MoviePy v2
-            clip = video.subclipped(
-                start_time,
-                end_time
-            )
-
-            progress.progress(60)
-
-            clip = center_crop_vertical(clip)
-
-            progress.progress(80)
-
-            clip.write_videofile(
-                output_path,
-                codec="libx264",
-                audio_codec="aac",
-                threads=2,
-                logger=None
-            )
-
-            clip.close()
-            video.close()
-
-            progress.progress(100)
-
-        st.success("Clip berhasil dibuat")
-
-        with open(output_path, "rb") as f:
-            video_bytes = f.read()
-
-        st.video(video_bytes)
-
-        st.download_button(
-            label="⬇ Download Clip",
-            data=video_bytes,
-            file_name="clip_vertical.mp4",
-            mime="video/mp4"
-        )
-
-    except Exception as e:
-
-        st.error("Terjadi kesalahan:")
-        st.exception(e)
-
-    finally:
-
-        cleanup_directory(temp_dir)
+# Konfigurasi Halaman Streamlit
+st.set_page_config(page_title="Video Clipper Tool", page_icon="✂️")
+st.title("✂️ Video Clipper Tool")
+st.write("Download dan potong video dari berbagai platform seperti YouTube, Reddit, dan lainnya.")
+
+# Input dari pengguna
+url = st.text_input("🔗 Masukkan URL Video:")
+
+col1, col2 = st.columns(2)
+with col1:
+    start_time = st.number_input("Mulai (detik):", min_value=0, value=0)
+with col2:
+    end_time = st.number_input("Selesai (detik):", min_value=1, value=10)
+
+# Tombol proses
+if st.button("Proses Video"):
+    if not url:
+        st.warning("Mohon masukkan URL video terlebih dahulu.")
+    elif start_time >= end_time:
+        st.error("Waktu selesai harus lebih besar dari waktu mulai.")
+    else:
+        with st.spinner("Sedang mengunduh dan memotong video... (Ini memakan waktu beberapa saat)"):
+            try:
+                # Menentukan nama file sementara
+                raw_file = "temp_video.mp4"
+                clipped_file = "final_video.mp4"
+
+                # Hapus sisa file lama jika ada agar memori server tidak penuh
+                if os.path.exists(raw_file): os.remove(raw_file)
+                if os.path.exists(clipped_file): os.remove(clipped_file)
+
+                # 1. Konfigurasi yt-dlp untuk mengunduh video
+                ydl_opts = {
+                    'format': 'best', # Mengambil resolusi terbaik yang menyatukan audio & video
+                    'outtmpl': raw_file,
+                    'quiet': True,
+                    'noplaylist': True
+                }
+
+                # Mulai mengunduh
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+
+                # 2. Proses pemotongan menggunakan moviepy
+                clip = VideoFileClip(raw_file).subclip(start_time, end_time)
+                # Menyimpan hasil potongan
+                clip.write_videofile(clipped_file, codec="libx264", audio_codec="aac", logger=None)
+                clip.close()
+
+                # 3. Menampilkan hasil di layar
+                st.success("✅ Video berhasil dipotong!")
+                st.video(clipped_file)
+
+                # Tombol untuk mendownload hasil akhir
+                with open(clipped_file, "rb") as file:
+                    st.download_button(
+                        label="⬇️ Download Video Hasil Potongan",
+                        data=file,
+                        file_name="video_potongan.mp4",
+                        mime="video/mp4"
+                    )
+
+            except Exception as e:
+                st.error(f"❌ Terjadi kesalahan: Pastikan URL valid atau coba video lain. Detail error: {e}")
