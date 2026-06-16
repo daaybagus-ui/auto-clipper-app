@@ -8,7 +8,7 @@ import re
 st.set_page_config(page_title="Video Clipper Tool", page_icon="✂️", layout="centered")
 
 st.title("✂️ Video Clipper Tool")
-st.write("Unduh dan potong video dari berbagai platform seperti YouTube, Reddit, dan lainnya tanpa terkendala Error 403.")
+st.write("Unduh dan potong video dari berbagai platform (YouTube, Reddit, X/Twitter, dll).")
 
 # Fungsi untuk membersihkan URL secara otomatis dari tracking parameter (?si=...)
 def clean_url(url_string):
@@ -26,7 +26,7 @@ col1, col2 = st.columns(2)
 with col1:
     start_time = st.number_input("Mulai (detik):", min_value=0, value=0, step=1)
 with col2:
-    end_time = st.number_input("Selesai (detik):", min_value=1, value=10, step=1)
+    end_time = st.number_input("Selesai (detik):", min_value=1, value=30, step=1)
 
 # Tombol proses
 if st.button("Proses Video", type="primary"):
@@ -52,20 +52,22 @@ if st.button("Proses Video", type="primary"):
                     try: os.remove(clipped_file)
                     except: pass
 
-                # 1. Konfigurasi yt-dlp yang diperbarui untuk mengatasi HTTP Error 403 (Forbidden)
+                # 1. Konfigurasi yt-dlp (Edisi Force IPv4 & Bypass Ketat Android)
                 ydl_opts = {
-                    'format': 'best[ext=mp4]/best',  # Mengutamakan format MP4 gabungan video & audio terbaik
+                    'format': 'best[ext=mp4]/best',
                     'outtmpl': raw_file,
                     'quiet': True,
                     'noplaylist': True,
-                    'nocheckcertificate': True,      # Mengabaikan masalah verifikasi sertifikat SSL tertentu
+                    'nocheckcertificate': True,
+                    'source_address': '0.0.0.0', # Memaksa server Streamlit menggunakan IPv4
+                    'rm_cachedir': True,         # Membersihkan cache internal yt-dlp
                     'extractor_args': {
-                        'youtube': ['player_client=ios,android,web']  # Menyamarkan request sebagai aplikasi mobile resmi
+                        'youtube': ['player_client=android'] # Fokus menyamar sebagai aplikasi Android murni
                     },
                     'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.9',
+                        'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
                     }
                 }
 
@@ -75,12 +77,12 @@ if st.button("Proses Video", type="primary"):
 
                 # Pastikan file mentah berhasil diunduh sebelum memotong
                 if not os.path.exists(raw_file):
-                    raise FileNotFoundError("Gagal mengambil file video mentah. Server memblokir unduhan.")
+                    raise FileNotFoundError("Gagal mengambil file video. Server memblokir unduhan.")
 
                 # 2. Proses pemotongan sub-klip menggunakan moviepy
                 clip = VideoFileClip(raw_file).subclip(start_time, end_time)
                 
-                # Menyimpan hasil potongan dengan codec standar yang kompatibel di semua browser
+                # Menyimpan hasil potongan
                 clip.write_videofile(
                     clipped_file, 
                     codec="libx264", 
@@ -107,4 +109,4 @@ if st.button("Proses Video", type="primary"):
             except Exception as e:
                 st.error("❌ Terjadi kesalahan saat memproses video.")
                 st.info(f"**Detail Error:** {e}")
-                st.write("💡 *Tips:* Jika error berlanjut, klik menu tiga titik `⋮` di pojok kanan atas Streamlit -> Pilih *Manage App* -> Pilih *Reboot App* untuk menyegarkan koneksi IP server.")
+                st.write("💡 *Tips:* Jika YouTube terus menerus memblokir IP Streamlit, cobalah menggunakan tools ini untuk platform lain seperti TikTok, X/Twitter, atau Facebook. Biasanya platform tersebut tidak memblokir IP server.")
