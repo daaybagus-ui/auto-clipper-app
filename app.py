@@ -7,11 +7,43 @@ import tempfile
 import shutil
 from pathlib import Path
 from typing import Optional
+import subprocess
 
 import streamlit as st
 import yt_dlp
-from moviepy.editor import VideoFileClip
-from moviepy.video.fx.all import crop
+
+# Try import moviepy with friendly error message (prevents red crash)
+try:
+    from moviepy.editor import VideoFileClip
+    from moviepy.video.fx.all import crop
+except ModuleNotFoundError as e:
+    st.error(
+        """
+        Module 'moviepy' tidak terpasang pada runtime. Untuk memperbaiki:
+        1) Tambahkan moviepy dan imageio-ffmpeg ke requirements.txt di repo Anda.
+        2) Pastikan packages.txt berisi 'ffmpeg' agar binary ffmpeg terpasang di runtime Streamlit Cloud.
+        Setelah mengubah file, redeploy app.
+        """
+    )
+    st.markdown("Detail error: " + str(e))
+    st.stop()
+
+# Check ffmpeg binary availability
+def _ffmpeg_available():
+    try:
+        subprocess.check_output(["ffmpeg", "-version"], stderr=subprocess.STDOUT)
+        return True
+    except Exception:
+        return False
+
+if not _ffmpeg_available():
+    st.error(
+        """
+        Binary `ffmpeg` tidak ditemukan di environment. Pastikan file packages.txt berisi `ffmpeg`
+        dan redeploy app. Di local Anda bisa menginstal ffmpeg (apt / brew / choco).
+        """
+    )
+    st.stop()
 
 # Configure logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -65,7 +97,6 @@ class YTDLPDownloader:
 
     def _make_ydl_opts(self, outtmpl):
         # User-Agent set to mimic Android mobile client; also add Referer
-        # You can switch to an iOS UA if desired.
         android_ua = "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Mobile Safari/537.36"
         opts = {
             "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
@@ -93,11 +124,9 @@ class YTDLPDownloader:
     def _progress_hook(self, d):
         try:
             if d.get("status") == "downloading":
-                # percent string like "12.3%"
                 p = d.get("_percent_str", "").strip()
                 speed = d.get("_speed_str", "")
                 eta = d.get("_eta_str", "")
-                # call callback with structured info
                 if self.progress_callback:
                     self.progress_callback(status="downloading", percent=p, speed=speed, eta=eta)
             elif d.get("status") == "finished":
@@ -120,13 +149,7 @@ class YTDLPDownloader:
         opts = self._make_ydl_opts(outtmpl)
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            # choose best format (use same opts)
             result = ydl.extract_info(url, download=True)
-            # yt-dlp returns info dict for download
-            if isinstance(result, dict) and result.get("requested_formats"):
-                # merged path is in result['requested_formats'] elements or 'url' - safer to search output filename
-                # However progress_hook already reported filename on finished
-                pass
             return result
 
 # ----------
@@ -219,7 +242,11 @@ if btn_process:
         def progress_cb(status, percent=None, speed=None, eta=None, filename=None):
             if status == "downloading":
                 text = f"Downloading... {percent} @ {speed} ETA {eta}"
-                progress_bar.progress(int(float(percent.strip().replace("%", "")))) if percent and percent.strip() else None
+                try:
+                    if percent and percent.strip():
+                        progress_bar.progress(int(float(percent.strip().replace("%", ""))))
+                except Exception:
+                    pass
                 status_placeholder.info(text)
             elif status == "finished":
                 progress_bar.progress(100)
@@ -240,14 +267,13 @@ if btn_process:
         status_placeholder.info("Mengunduh video dari YouTube...")
         result = downloader.download(url)
         # find downloaded file: yt-dlp usually writes file path in 'requested_downloads' or 'filename'
-        # We'll search temp dir for recent mp4
         mp4_files = list(tmp_root.glob("**/*.mp4"))
         if not mp4_files:
             # try other extensions
             mp4_files = list(tmp_root.glob("**/*.*"))
         if not mp4_files:
             raise FileNotFoundError("File hasil download tidak ditemukan di folder sementara")
-        # pick largest mp4 file
+        # pick most recent file
         mp4_files_sorted = sorted(mp4_files, key=lambda p: p.stat().st_mtime, reverse=True)
         video_path = mp4_files_sorted[0]
         status_placeholder.info(f"File download: {video_path.name}")
