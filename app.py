@@ -2,6 +2,7 @@ import streamlit as st
 import yt_dlp
 from moviepy.editor import VideoFileClip
 import os
+import glob
 
 st.set_page_config(page_title="Auto-Clipper Shorts", page_icon="✂️")
 
@@ -17,12 +18,13 @@ with col2:
 
 if st.button("🚀 Buat Video Pendek!"):
     if url:
-        with st.spinner("⬇️ Mengunduh video (Mencoba jalur khusus iOS)..."):
+        with st.spinner("⬇️ Mengunduh video (Berhasil menembus YouTube, memproses format...)..."):
             
-            # Konfigurasi Trik iOS & IPv4
+            # Konfigurasi Trik iOS yang Disempurnakan (Format Fleksibel)
             ydl_opts = {
-                'format': 'best',
-                'outtmpl': 'temp_video.mp4',
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                'outtmpl': 'temp_video.%(ext)s',
+                'merge_output_format': 'mp4',
                 'quiet': True,
                 'nocheckcertificate': True,
                 'force_ipv4': True,
@@ -67,8 +69,10 @@ if st.button("🚀 Buat Video Pendek!"):
                 clip.close()
                 subclip.close()
                 cropped_clip.close()
-                if os.path.exists("temp_video.mp4"):
-                    os.remove("temp_video.mp4")
+                
+                # Bersihkan file temporary
+                for f in glob.glob("temp_video*"):
+                    os.remove(f)
 
             except Exception as e:
                 st.error(f"❌ ERROR: {e}")
