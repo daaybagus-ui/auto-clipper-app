@@ -1,5 +1,5 @@
 import streamlit as st
-from moviepy import VideoFileClip
+from moviepy.editor import VideoFileClip
 import librosa
 import numpy as np
 import os
