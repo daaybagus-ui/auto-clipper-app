@@ -18,14 +18,18 @@ with col2:
 
 if st.button("🚀 Buat Video Pendek!"):
     if url:
-        with st.spinner("⬇️ Mengunduh video dari YouTube... (Mungkin butuh beberapa saat)"):
-            # Konfigurasi yt-dlp dengan trik Android
+        with st.spinner("⬇️ Mengunduh video dari YouTube... (Memulai Mode Siluman)"):
+            
+            # Konfigurasi Anti-Blokir YouTube (Mode Siluman)
             ydl_opts = {
-                'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
+                'format': 'best[ext=mp4]', 
                 'outtmpl': 'temp_video.%(ext)s',
-                'merge_output_format': 'mp4',
                 'quiet': True,
-                'extractor_args': {'youtube': {'player_client': ['android']}}
+                'nocheckcertificate': True, 
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+                },
+                'extractor_args': {'youtube': {'player_client': ['android', 'web']}}
             }
             
             try:
@@ -76,7 +80,8 @@ if st.button("🚀 Buat Video Pendek!"):
                 clip.close()
                 subclip.close()
                 cropped_clip.close()
-                os.remove("temp_video.mp4")
+                if os.path.exists("temp_video.mp4"):
+                    os.remove("temp_video.mp4")
 
             except Exception as e:
                 st.error(f"❌ Terjadi kesalahan: {e}")
