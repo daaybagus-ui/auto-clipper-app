@@ -1,6 +1,4 @@
 ffmpeg
 libsm6
-libxext6
-libxrender-dev
-librosa
-portaudio19-dev
+libxrender1
+libfontconfig1
