@@ -1,3 +1,4 @@
-streamlit
-yt-dlp>=2024.03.10
-moviepy==1.0.3
+streamlit==1.38.0
+yt-dlp>=2024.10.7
+moviepy==2.1.2
+imageio-ffmpeg==0.5.1
