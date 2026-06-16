@@ -1,0 +1,2 @@
+# auto-clipper-app
+Clipper
