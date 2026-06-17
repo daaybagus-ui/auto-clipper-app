@@ -88,7 +88,8 @@ def build_ydl_opts(output_path: str, player_client: str, cookiefile: str | None 
         "sleep_interval_requests": 1,        # jeda antar request metadata
         "sleep_interval": 1,                 # jeda antar fragment/percobaan
         "max_sleep_interval": 5,
-        "js_runtimes": ["node"],  # Deno tidak tersedia di Streamlit Cloud; pakai Node (dari packages.txt)
+        "js_runtimes": {"node": {}},  # format harus dict: {runtime: {config}}; Deno tak ada di Streamlit Cloud
+        "remote_components": ["ejs:github"],  # fallback unduh solver EJS jika komponen lokal tak lengkap
         "extractor_args": {
             "youtube": {
                 "player_client": [player_client],
