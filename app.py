@@ -69,9 +69,11 @@ def cleanup_dir(path: str):
 # ----------------------------------------------------------------------------
 def build_ydl_opts(output_path: str, player_client: str, cookiefile: str | None = None) -> dict:
     """
-    player_client menentukan 'penyamaran' yt-dlp: android, ios, web, tv, dll.
-    Client mobile (android/ios) sering punya endpoint stream yang tidak
-    terkena pengetatan 403 / signature yang biasa berlaku di client web.
+    player_client menentukan 'penyamaran' yt-dlp: android, ios, web, mweb, dll.
+    Sejak akhir 2025, yt-dlp memerlukan JavaScript runtime eksternal (Deno/Node)
+    untuk memecahkan signature YouTube. Streamlit Cloud tidak punya Deno secara
+    default, jadi kita arahkan ke 'node' (dipasang via packages.txt) sebagai
+    runtime fallback.
     """
     opts = {
         "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best",
@@ -86,6 +88,7 @@ def build_ydl_opts(output_path: str, player_client: str, cookiefile: str | None 
         "sleep_interval_requests": 1,        # jeda antar request metadata
         "sleep_interval": 1,                 # jeda antar fragment/percobaan
         "max_sleep_interval": 5,
+        "js_runtimes": ["node"],  # Deno tidak tersedia di Streamlit Cloud; pakai Node (dari packages.txt)
         "extractor_args": {
             "youtube": {
                 "player_client": [player_client],
@@ -109,9 +112,9 @@ def download_video(url: str, output_dir: str, status_placeholder, cookiefile: st
     terkena 403 / error ekstraksi, otomatis lanjut ke client berikutnya.
     Mengembalikan path file video yang berhasil diunduh.
     """
-    # Urutan ini dipilih karena client mobile umumnya paling jarang
-    # terblokir dibanding client 'web' biasa.
-    clients_to_try = ["android", "ios", "web", "tv_embedded"]
+    # Urutan ini dipilih berdasarkan laporan komunitas yt-dlp per awal 2026:
+    # mweb dan android sering masih berfungsi saat client 'web' biasa diblokir.
+    clients_to_try = ["mweb", "android", "ios", "web", "tv_embedded"]
     last_error = None
 
     for attempt, client in enumerate(clients_to_try, start=1):
@@ -161,7 +164,13 @@ def download_video(url: str, output_dir: str, status_placeholder, cookiefile: st
     # Semua client gagal.
     raise RuntimeError(
         "Gagal mengunduh video setelah mencoba semua mode client "
-        f"({', '.join(clients_to_try)}). Penyebab terakhir: {last_error}"
+        f"({', '.join(clients_to_try)}). Penyebab terakhir: {last_error}\n\n"
+        "Jika ini terjadi pada SEMUA video tanpa terkecuali, kemungkinan besar "
+        "penyebabnya bukan video itu sendiri, melainkan alamat IP server Streamlit "
+        "Cloud sedang dibatasi oleh YouTube (hal ini terjadi pada banyak aplikasi "
+        "yang berjalan di infrastruktur cloud publik). Coba lagi beberapa saat "
+        "kemudian, atau pertimbangkan menjalankan aplikasi ini di server/VPS "
+        "dengan IP residensial sebagai alternatif jangka panjang."
     )
 
 
